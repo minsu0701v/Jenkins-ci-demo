@@ -1,5 +1,5 @@
 def make_status():
     return {
-        "status": "ok",
+        "status": "healthy",
         "service": "jenkins-ci-demo"
     }

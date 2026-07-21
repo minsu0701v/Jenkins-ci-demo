@@ -59,9 +59,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                    echo "===== 컨테이너 배포 ====="
-                    docker-compose up -d --force-recreate
-                    docker-compose ps
+                   echo "===== 컨테이너 배포 ====="
+		   docker rm -f jenkins-ci-demo 2>/dev/null || true
+		   docker-compose up -d
+             	   docker-compose ps 
                 '''
             }
         }
