@@ -50,6 +50,35 @@ pipeline {
                 '''
             }
         }
+	stage('Save Current Version') {
+    		steps {
+        		script {
+            			int containerExists = sh(
+                			script: '''
+                    				docker inspect jenkins-ci-demo >/dev/null 2>&1
+                			''',
+                			returnStatus: true
+            			)
+
+            			if (containerExists == 0) {
+                			env.PREVIOUS_IMAGE = sh(
+                    				script: '''
+                        					docker inspect jenkins-ci-demo \
+                            					--format='{{.Config.Image}}'
+                    					''',
+                    				returnStdout: true
+                			).trim()
+
+               	 			echo "현재 실행 이미지: ${env.PREVIOUS_IMAGE}"
+            			} else {
+                			env.PREVIOUS_IMAGE = ""
+                			echo "현재 실행 중인 기존 컨테이너가 없습니다."
+            			}		
+
+            			echo "새 배포 이미지: jenkins-ci-demo:${env.IMAGE_TAG}"
+        		}		
+    		}	
+	}	
 
         stage('Build Image') {
             steps {
@@ -57,28 +86,6 @@ pipeline {
                     echo "===== Docker 이미지 빌드 ====="
                     docker-compose build
                 '''
-            }
-        }
-
-        stage('Save Current Version') {
-            steps {
-                script {
-                    env.PREVIOUS_IMAGE = sh(
-                        script: '''
-                            docker inspect jenkins-ci-demo \
-                                --format='{{.Config.Image}}' 2>/dev/null || true
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    if (env.PREVIOUS_IMAGE) {
-                        echo "현재 실행 이미지: ${env.PREVIOUS_IMAGE}"
-                    } else {
-                        echo "현재 실행 중인 기존 이미지가 없습니다."
-                    }
-
-                    echo "새 배포 이미지: jenkins-ci-demo:${env.IMAGE_TAG}"
-                }
             }
         }
 
