@@ -3,7 +3,7 @@ version: "3.8"
 services:
   app:
     build: .
-    image: jenkins-ci-demo:latest
+    image: jenkins-ci-demo:${IMAGE_TAG}
     container_name: jenkins-ci-demo
     ports:
       - "18080:5000"

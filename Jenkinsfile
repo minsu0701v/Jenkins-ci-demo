@@ -1,6 +1,9 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_TAG = "${env.BUILD_NUMBER}" 
+    }
     options {
         disableConcurrentBuilds()
     }
@@ -9,12 +12,9 @@ pipeline {
         stage('Environment Check') {
             steps {
                 sh '''
-                    echo "===== 실행 환경 ====="
-                    whoami
-                    hostname
-                    pwd
-                    git --version
-                    docker --version
+                    echo "Jenkins Build Number: ${BUILD_NUMBER}"
+                    echo "Docker Image Tag: ${IMAGE_TAG}"
+		    docker --version
                     docker-compose --version
                 '''
             }
@@ -60,7 +60,6 @@ pipeline {
             steps {
                 sh '''
                    echo "===== 컨테이너 배포 ====="
-		   docker rm -f jenkins-ci-demo 2>/dev/null || true
 		   docker-compose up -d
              	   docker-compose ps 
                 '''
