@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 @app.get("/")
 def index():
-    return "Hello Jenkins CI/CD!"
+    return "Jenkins CI/CD Demo - version 10"
 
 
 @app.get("/health")
