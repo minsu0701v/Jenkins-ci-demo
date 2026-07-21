@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         IMAGE_TAG = "${env.BUILD_NUMBER}"
-        PREVIOUS_IMAGE = ""
     }
 
     options {
@@ -50,33 +49,28 @@ pipeline {
                 '''
             }
         }
+	
 	stage('Save Current Version') {
     		steps {
-        		script {
-            			int containerExists = sh(
-                			script: '''
-                    				docker inspect jenkins-ci-demo >/dev/null 2>&1
-                			''',
-                			returnStatus: true
-            			)
+        		sh '''
+            			echo "===== 현재 버전 저장 ====="
 
-            			if (containerExists == 0) {
-                			env.PREVIOUS_IMAGE = sh(
-                    				script: '''
-                        					docker inspect jenkins-ci-demo \
-                            					--format='{{.Config.Image}}'
-                    					''',
-                    				returnStdout: true
-                			).trim()
+            			PREVIOUS_IMAGE=$(docker inspect jenkins-ci-demo \
+                			--format='{{.Config.Image}}')
 
-               	 			echo "현재 실행 이미지: ${env.PREVIOUS_IMAGE}"
-            			} else {
-                			env.PREVIOUS_IMAGE = ""
-                			echo "현재 실행 중인 기존 컨테이너가 없습니다."
-            			}		
+            			if [ -z "$PREVIOUS_IMAGE" ]; then
+                			echo "기존 이미지 정보를 가져오지 못했습니다."
+                			exit 1
+            			fi
 
-            			echo "새 배포 이미지: jenkins-ci-demo:${env.IMAGE_TAG}"
-        		}		
+            			echo "$PREVIOUS_IMAGE" > .previous_image
+
+            			echo "롤백용 이미지 저장 완료: $PREVIOUS_IMAGE"
+            			echo "저장 파일 내용:"
+            			cat .previous_image
+        		'''
+    		}		
+	}	
     		}	
 	}	
 
