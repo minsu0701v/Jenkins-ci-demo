@@ -196,4 +196,16 @@ pipeline {
     		}
 	}
 }
+	post{
+		success {
+			echo "빌드 및 배포 성공"
+		}
+		failure{
+			echo "빌드 또는 배포 실패"
+		}
+		always{
+			echo "파이프라인 종료"
+		}
+	}
+		
 }
