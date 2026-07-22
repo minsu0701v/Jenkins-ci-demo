@@ -13,7 +13,7 @@ def index():
 
 @app.get("/health")
 def health():
-    return jsonify(make_status()), 500
+    return jsonify(make_status()), 2200
 
 
 if __name__ == "__main__":
