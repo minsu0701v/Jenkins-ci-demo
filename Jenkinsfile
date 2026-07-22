@@ -96,124 +96,102 @@ pipeline {
                 '''
             }
         }
+	stage('Health Check') {
+    		steps {
+        		script {
+            			int healthStatus = sh(
+                			script: '''
+                    				for i in 1 2 3 4 5
+                    				do
+                        				echo "Health Check: ${i}/5"
 
-        stage('Health Check') {
-            steps {
-                script {
-                    int healthStatus = sh(
-                        script: '''
-                            for i in 1 2 3 4 5
-                            do
-                                echo "Health Check: ${i}/5"
+                        				if curl -fsS http://127.0.0.1:18080/health
+                        				then
+                            					echo
+                            					echo "Health Check 성공"
+                            					exit 0
+                        				fi
 
-                                if curl -fsS http://127.0.0.1:18080/health
-                                then
-                                    echo
-                                    echo "Health Check 성공"
-                                    exit 0
-                                fi
+                        				sleep 2
+                    				done
 
-                                sleep 2
-                            done
+                    				echo "Health Check 실패"
+                    				docker logs jenkins-ci-demo || true
 
-                            echo "Health Check 실패"
-                            docker logs jenkins-ci-demo || true
+                    				exit 1
+                			''',
+                			returnStatus: true
+            			)			
 
-                            exit 1
-                        ''',
-                        returnStatus: true
-                    )
+            			if (healthStatus != 0) {
+                			echo "새 버전 Health Check 실패"
+                			echo "자동 롤백을 시작합니다."
 
-                    if (healthStatus != 0) {
-                        echo "새 버전 Health Check 실패"
-                        echo "자동 롤백을 시작합니다."
+                			sh '''
+                   				echo "===== 자동 롤백 ====="
+	
+                    				if [ ! -f .previous_image ]; then
+                        				echo "이전 이미지 기록 파일이 없습니다."
+                       			 		exit 1
+                    				fi
 
-                        if (!env.PREVIOUS_IMAGE?.trim()) {
-                            error(
-                                "이전 이미지가 없어 롤백할 수 없습니다."
-                            )
-                        }
+                    			PREVIOUS_IMAGE=$(cat .previous_image)
+                    			PREVIOUS_TAG=${PREVIOUS_IMAGE#jenkins-ci-demo:}
 
-                        def previousTag = env.PREVIOUS_IMAGE.replace(
-                            'jenkins-ci-demo:',
-                            ''
-                        )
+                    			if [ -z "$PREVIOUS_TAG" ]; then
+                        			echo "이전 이미지 태그를 추출하지 못했습니다."
+                        			exit 1
+                    			fi
 
-                        sh """
-                            echo "===== 자동 롤백 ====="
-                            echo "롤백 대상 이미지: ${env.PREVIOUS_IMAGE}"
+                    			echo "롤백 대상 이미지: $PREVIOUS_IMAGE"
+                    			echo "롤백 대상 태그: $PREVIOUS_TAG"
 
-                            docker rm -f jenkins-ci-demo \
-                                2>/dev/null || true
+                    			docker rm -f jenkins-ci-demo \
+                        			2>/dev/null || true
 
-                            IMAGE_TAG=${previousTag} \
-                                docker-compose up -d
+                    			IMAGE_TAG=$PREVIOUS_TAG \
+                        		docker-compose up -d
 
-                            docker-compose ps
-                        """
+                    			docker-compose ps
+                			'''
 
-                        int rollbackStatus = sh(
-                            script: '''
-                                for i in 1 2 3 4 5
-                                do
-                                    echo "Rollback Health Check: ${i}/5"
+                			int rollbackStatus = sh(
+                    			script: '''
+                        			for i in 1 2 3 4 5
+                        			do
+                            				echo "Rollback Health Check: ${i}/5"
 
-                                    if curl -fsS \
-                                        http://127.0.0.1:18080/health
-                                    then
-                                        echo
-                                        echo "롤백 Health Check 성공"
-                                        exit 0
-                                    fi
+                            			if curl -fsS \
+                                			http://127.0.0.1:18080/health
+                            			then
+                                			echo
+                                			echo "롤백 Health Check 성공"
+                                			exit 0
+                            			fi
 
-                                    sleep 2
-                                done
+                            			sleep 2
+                        		done
 
-                                echo "롤백 Health Check 실패"
-                                docker logs jenkins-ci-demo || true
+                       	 			echo "롤백 Health Check 실패"
+                        			docker logs jenkins-ci-demo || true
 
-                                exit 1
-                            ''',
-                            returnStatus: true
-                        )
+                        			exit 1
+                    			''',
+                    			returnStatus: true
+                			)
 
-                        if (rollbackStatus != 0) {
-                            error(
-                                "새 버전 배포와 롤백이 모두 실패했습니다."
-                            )
-                        }
+                			if (rollbackStatus != 0) {
+                    				error(
+                        				"새 버전 배포와 롤백이 모두 실패했습니다."
+                    				)
+                			}
 
-                        error(
-                            "새 버전 배포 실패. " +
-                            "${env.PREVIOUS_IMAGE}로 롤백했습니다."
-                        )
-                    }
+                			error(
+                    				"새 버전 배포에 실패하여 이전 버전으로 롤백했습니다."
+               				)
+            		}
 
-                    echo "새 버전 배포가 정상 완료되었습니다."
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'CI/CD Pipeline 성공'
-        }
-
-        failure {
-            echo 'CI/CD Pipeline 실패'
-        }
-
-        always {
-            sh '''
-                echo "===== 최종 실행 상태 ====="
-
-                docker inspect jenkins-ci-demo \
-                    --format='현재 이미지: {{.Config.Image}}' \
-                    2>/dev/null || true
-
-                docker-compose ps || true
-            '''
-        }
-    }
+            		echo "새 버전 배포가 정상 완료되었습니다."
+        	}
+    	}
 }
